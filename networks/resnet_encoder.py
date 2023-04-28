@@ -76,6 +76,7 @@ class ResnetEncoder(nn.Module):
             - image_reference (np.ndarray): reference image
             - image_before, image_after (np.ndarray): target image
             whose pose will be calculated
+
         Returns:
             - pose (list[Tensor]): the output from the fourth
             branch of SimVODIS. It contains the relative poses
@@ -88,18 +89,22 @@ class ResnetEncoder(nn.Module):
         '''
         assert img_before.shape == img_ref.shape, ("reference and target in "
                                                    "different shape")
+
         if not self.training and self.transforms is not None:
             img_before = self.transforms(img_before)
             img_ref = self.transforms(img_ref)
             img_after = self.transforms(img_after)
+
         img_before = img_before.to(self.device)
         img_ref = img_ref.to(self.device)
         img_after = img_after.to(self.device)
+
         if img_ref.dim() == 3:
             img_before = img_before.unsqueeze(0)
             img_ref = img_ref.unsqueeze(0)
             img_after = img_after.unsqueeze(0)
         images = torch.cat((img_before, img_ref, img_after), 0)
+
         num_batch = images.shape[0] // 3
         '''
         if not self.training and self.transforms is not None:

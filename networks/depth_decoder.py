@@ -57,6 +57,14 @@ class DepthDecoder(nn.Module):
             nn.ELU(inplace=True)
         )
         
+        self.conv6 = nn.Sequential(
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0),
+            nn.BatchNorm2d(64, eps=0.001, momentum=0.01),
+            # nn.ReLU(inplace=True)
+            nn.ELU(inplace=True)
+        )
+        
         self.deconv1 = nn.Sequential(
             torch.nn.Upsample(scale_factor=2, mode='nearest'),
             nn.ReflectionPad2d(1),
@@ -93,6 +101,15 @@ class DepthDecoder(nn.Module):
             torch.nn.Upsample(scale_factor=2, mode='nearest'),
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 64, kernel_size=3, stride=1, padding=0),
+            nn.BatchNorm2d(64, eps=0.001, momentum=0.01),
+            # nn.ReLU(inplace=True)
+            nn.ELU(inplace=True)
+        )
+        
+        self.deconv6 = nn.Sequential(
+            torch.nn.Upsample(scale_factor=2, mode='nearest'),
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(64, eps=0.001, momentum=0.01),
             # nn.ReLU(inplace=True)
             nn.ELU(inplace=True)
@@ -137,7 +154,8 @@ class DepthDecoder(nn.Module):
         self.outputs = {}
 
         feats = list(reversed(feature_maps))
-
+        # feats = list(feature_maps)
+        
         x = self.deconv1(self.conv1(feats[0]))
         
         x = self.deconv2(torch.cat([self.conv2(feats[1]), x], dim=1))
@@ -153,6 +171,11 @@ class DepthDecoder(nn.Module):
             self.outputs[("disp", 1)] = self.depth_pred1(x)
         
         x = self.deconv5(torch.cat([self.conv5(feats[4]), x], dim=1))
+        
+        x = self.deconv6(self.conv6(x))
+        # print('final deconv shape: ', x.shape)
         x = self.depth_pred(x)
+        # print('final depth out shape: ', x.shape)
+        
         self.outputs[("disp", 0)] = x
-        return self.
+        return self.outputs
