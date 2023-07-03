@@ -6,11 +6,18 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 # import torchvision
 
-class ResnetEncoder_pre(nn.Module):
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+        
+    def forward(self, x):
+        return x
+
+class ResnetEncoder_student(nn.Module):
     """Pytorch module for a resnet encoder
     """
     def __init__(self, num_layers, pretrained, num_input_images=1):
-        super(ResnetEncoder_pre, self).__init__()
+        super(ResnetEncoder_student, self).__init__()
 
         model = models.detection.maskrcnn_resnet50_fpn(weights = (models.detection.MaskRCNN_ResNet50_FPN_Weights))
         # self.transform = model.transform
@@ -20,7 +27,7 @@ class ResnetEncoder_pre(nn.Module):
         #     ])
         
         self.backbone = model.backbone
-        # self.backbone.body.conv1 = nn.Conv2d(28, 64, kernel_size=(7,7), stride = (2,2), padding = (3,3), bias = False)
+        self.backbone.body.conv1 = Identity()
         
 
     def forward(self, input_image):
@@ -46,4 +53,11 @@ class ResnetEncoder_pre(nn.Module):
         return self.features
     
 
-
+class Initial_student(nn.Module):
+    def __init__(self):
+        super(Initial_student, self).__init__()
+        
+        self.initial_layer = nn.Conv2d(3, 64, kernel_size = (7, 7), stride = (2, 2), padding = (3, 3), bias = False)
+        
+    def forward(self, input_image):
+        return self.initial_layer(input_image)
