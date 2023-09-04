@@ -23,6 +23,7 @@ class conv_block(nn.Module):
         super(conv_block, self).__init__()
         
         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size = 3, stride = 1, padding = 1, bias = False)
+        # self.conv2 = nn.Conv2d(in_channels, in_channels, kernel_size = 3, stride = 1, padding = 1, bias = False)
         # self.norm = nn.BatchNorm2d(in_channels)
         
         self.act = nn.ReLU(inplace = True)
@@ -33,6 +34,13 @@ class conv_block(nn.Module):
         d0, d1, d2, d3 = x.shape
         self.norm = nn.LayerNorm(d3).cuda()
         x = self.norm(x)
+        # x = self.act(x)
+        
+        # x = self.conv2(x)
+        # d0, d1, d2, d3 = x.shape
+        # self.norm = nn.LayerNorm(d3).cuda()
+        # x = self.norm(x)
+        
         return self.act(x)
 
 class Trainer:
@@ -120,7 +128,7 @@ class Trainer:
         self.momentum_schedule = self.cosine_scheduler(0.998, 1, self.opt.num_epochs, len(self.train_loader))
         
         self.record_saves = 'D:\\depth_estimation_implementation\\all_saves\\record_saves'
-        self.file_path = os.path.join(self.record_saves, 'finetuned_A3.txt')
+        self.file_path = os.path.join(self.record_saves, 'pretraining_A4.txt')
         
         self.save_folder = save_folder
         
@@ -169,12 +177,14 @@ class Trainer:
             
     def load_model(self):
         
-        ep = 21
+        ep = 1
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\mini_data_saves\\with_A2_using_3_channels_0.1'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A2'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights'
-        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights_APPOLO'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights_APPOLO'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3'
+        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A3_oneLR'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3_L1'
         
         # encoder_name = 'Encoder.pth'
         # depth_name = 'Depth.pth'
@@ -191,14 +201,18 @@ class Trainer:
         self.models['depth'].load_state_dict(torch.load(os.path.join(path, depth_name)), strict=False)
         self.models['pose'].load_state_dict(torch.load(os.path.join(path, pose_name)), strict=False)
         
+        self.models['encoder_teacher'].load_state_dict(torch.load(os.path.join(path, encoder_name)), strict = False)
+        
     
     def load_entire(self):
-        ep = 23
+        ep = 9
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\mini_data_saves\\with_A2_using_3_channels_0.1'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A2'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights_APPOLO'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A3'
+        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3_0.2'
         
         # encoder_name = 'Encoder.pth'
         # depth_name = 'Depth.pth'
@@ -227,12 +241,15 @@ class Trainer:
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A2'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights'
-        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A3'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A3'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3_0.2'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3_L1'
+        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A4'
         
         encoder_name = 'Encoder' + str(self.epoch) + '.pth'
         depth_name = 'Depth' + str(self.epoch) + '.pth'
         pose_name = 'Pose' + str(self.epoch) + '.pth'
-        initial_name = 'Initial_encoder' + str(self.epoch) + '.pth'
+        initial_name = 'Initial_encoder' + str(self.epoch + 2) + '.pth'
         
         torch.save(self.models['initial'].state_dict(), os.path.join(path, initial_name))
         torch.save(self.models['encoder'].state_dict(), os.path.join(path, encoder_name))
@@ -266,6 +283,7 @@ class Trainer:
         # self.it = 0
         self.load_model() # -------------------------------------------  Remove this for another experiment -------
         # self.load_pretrained()
+        # self.load_entire()
 
         for self.epoch in range(0, self.opt.num_epochs):
             self.run_epoch(train_mode = 'combined')
@@ -316,15 +334,16 @@ class Trainer:
         self.set_eval()
         self.val_mode = True
         # ind = 0
-        
+        ii = 0
         for inputs in tqdm(self.val_loader):
-        
             with torch.no_grad():
                 outputs, losses = self.process_batch_val(inputs)
                 
                 if "depth_gt" in inputs:
                     dl, depth_errors = self.compute_depth_losses(inputs, outputs, losses)
                     abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3 = depth_errors
+                    print('scores: ', ii, ' ', abs_rel, sq_rel, rmse, rmse_log)
+                    ii = ii + 1
                     
                     image_prev = inputs[('image_aug', -1)].cpu().numpy()
                     image = inputs[('image_aug', 0)].cpu().numpy()
@@ -338,7 +357,7 @@ class Trainer:
                     all_indexes = inputs[('index', 0)]
                     gt_depths = inputs[('depth_gt')]
                     gt_depths = np.squeeze(gt_depths, axis = 1)
-                    print('depth gt shape: ', gt_depths.shape)
+                    # print('depth gt shape: ', gt_depths.shape)
                     # print('all_indexes: ', all_indexes)
                     # print(all_indexes[0])
                     
@@ -356,7 +375,7 @@ class Trainer:
                             next_image_slice = np.transpose(image_next[b, :, :, :], (1, 2, 0))
                             depth_slice = depth_pred[b, 0, :, :]
                             
-                            print('depth unique: ', np.unique(depth_slice))
+                            # print('depth unique: ', np.unique(depth_slice))
                             recons_prev_slice = np.transpose(recons_from_prev[b, :, :, :], (1, 2, 0))
                             recons_next_slice = np.transpose(recons_from_next[b, :, :, :], (1, 2, 0))
                             
@@ -371,23 +390,23 @@ class Trainer:
                             recons_next_slice = (recons_next_slice/np.max(recons_next_slice))*255
                             
                             orig_slice_path = orig_images[b]
-                            print('original path: ', orig_slice_path)
-                            print('splited: ', orig_slice_path.split('\\'))
+                            # print('original path: ', orig_slice_path)
+                            # print('splited: ', orig_slice_path.split('\\'))
                             
                             drive = orig_slice_path.split('\\')[4]
                             im_name = orig_slice_path.split('\\')[5]
                             file = orig_slice_path.split('\\')[7]
                             
                             depth_GT_path = 'E:\\Datasets\\data_depth_annotated\\train\\' + str(drive) + '\\proj_depth\\groundtruth\\' + str(im_name) + '\\' + str(file)
-                            print('#GT path: ', depth_GT_path)
-                            gt_depth = cv2.imread(depth_GT_path)
+                            # print('#GT path: ', depth_GT_path)
+                            # gt_depth = cv2.imread(depth_GT_path)
                             
                             depth_slice_gt = gt_depths[b]
                             orig_image = cv2.imread(orig_slice_path)
                             depth_slice_gt = depth_slice_gt.numpy()
                             depth_slice_gt = depth_slice_gt / np.max(depth_slice_gt)
                             # print('gt unique: ', np.unique(depth_slice_gt))
-                            print('GT shape: ', gt_depth.shape)
+                            # print('GT shape: ', gt_depth.shape)
                             plt.imshow(orig_image)
                             plt.show()
                             plt.imshow(depth_slice, cmap = 'gray') #gt_depth*256)
@@ -427,16 +446,16 @@ class Trainer:
                             depth_pil = Image.fromarray(np.uint8(depth_slice*256)).convert('RGB')
                             depth_pil.save(os.path.join(self.save_folder, depth_name_jpg))
                             
-                            gt_depth = gt_depth / np.max(gt_depth)
-                            gt_depth_pil = Image.fromarray(np.uint8(gt_depth*256)).convert('RGB')
-                            gt_depth_pil.save(os.path.join(self.save_folder, gt_depth_name_jpg))
+                            # gt_depth = gt_depth / np.max(gt_depth)
+                            # gt_depth_pil = Image.fromarray(np.uint8(gt_depth*256)).convert('RGB')
+                            # gt_depth_pil.save(os.path.join(self.save_folder, gt_depth_name_jpg))
                             
                             # cv2.imwrite(os.path.join(self.save_folder, depth_name_jpg), depth_slice)
                             # cv2.imwrite(os.path.join(self.save_folder, gt_depth_name_jpg), gt_depth)
                             
                             
                             np.save(os.path.join(self.save_folder, depth_name), depth_slice)
-                            np.save(os.path.join(self.save_folder, gt_depth_name), gt_depth)
+                            # np.save(os.path.join(self.save_folder, gt_depth_name), gt_depth)
                             # print('---saved---')
                             ind = ind + 1
                     except:
@@ -446,10 +465,14 @@ class Trainer:
         self.load_entire()
         self.set_eval()
         self.val_mode = True
+        ii = 0
         for inputs in tqdm(self.val_loader):
-        
-            with torch.no_grad():
-                outputs, losses = self.process_batch_analysis(inputs)
+            if ii >= 54:
+                with torch.no_grad():
+                    # outputs, losses = self.process_batch_analysis(inputs)
+                    self.process_batch_analysis(inputs)
+            
+            ii = ii+1
         
     def run_epoch(self, train_mode):
         self.set_train()
@@ -597,6 +620,7 @@ class Trainer:
         if self.opt.pose_model_type == 'shared':
             all_colour_aug = None
             all_colour_aug = torch.cat([inputs[('image_aug', i)] for i in self.opt.frame_ids])
+            print('input images shape: ', all_colour_aug.shape)
             
             all_features = self.models['initial'](all_colour_aug.cuda().float())
             all_features = self.models['encoder'](all_features)
@@ -620,47 +644,65 @@ class Trainer:
     
     def process_batch_analysis(self, inputs):
         
-        all_colour_aug_aff = None
-        for i in self.opt.frame_ids:
-            image = inputs[('image_aug', i)]
-            affinity = inputs[('affinity', i)][:, 0, :, :, :]
-            combined = torch.cat([image, affinity], dim = 1)
+        # all_colour_aug_aff = None
+        # for i in self.opt.frame_ids:
+        #     image = inputs[('image_aug', i)]
+        #     affinity = inputs[('affinity', i)][:, 0, :, :, :]
+        #     combined = torch.cat([image, affinity], dim = 1)
 
-            if all_colour_aug_aff == None:
-                all_colour_aug_aff = combined
-            else:
-                all_colour_aug_aff = torch.cat([all_colour_aug_aff, combined])
+        #     if all_colour_aug_aff == None:
+        #         all_colour_aug_aff = combined
+        #     else:
+        #         all_colour_aug_aff = torch.cat([all_colour_aug_aff, combined])
         
         all_colour_aug = torch.cat([inputs[('image_aug', i)] for i in self.opt.frame_ids])
         print('input shape: ', all_colour_aug.shape)
         
         disp_im_1 = all_colour_aug[0, :, :, :].detach().cpu().numpy()
-        disp_im_2 = all_colour_aug[35, :, :, :].detach().cpu().numpy()
+        disp_im_2 = all_colour_aug[1, :, :, :].detach().cpu().numpy()
+        disp_im_3 = all_colour_aug[2, :, :, :].detach().cpu().numpy()
+        disp_im_4 = all_colour_aug[3, :, :, :].detach().cpu().numpy()
+        disp_im_5 = all_colour_aug[4, :, :, :].detach().cpu().numpy()
         disp_im_1 = np.transpose(disp_im_1, (1, 2, 0))
         disp_im_2 = np.transpose(disp_im_2, (1, 2, 0))
+        disp_im_3 = np.transpose(disp_im_3, (1, 2, 0))
+        disp_im_4 = np.transpose(disp_im_4, (1, 2, 0))
+        disp_im_5 = np.transpose(disp_im_5, (1, 2, 0))
         print('Disp shapes: ', disp_im_1.shape, disp_im_2.shape)
         plt.imshow(disp_im_1)
         plt.show()
         plt.imshow(disp_im_2)
         plt.show()
+        plt.imshow(disp_im_3)
+        plt.show()
+        plt.imshow(disp_im_4)
+        plt.show()
+        plt.imshow(disp_im_5)
+        plt.show()
         
         all_features = self.models['initial'](all_colour_aug.cuda().float())
         all_features = self.models['encoder'](all_features)
         
-        all_features_teacher = self.models['initial_teacher'](all_colour_aug_aff.cuda().float())
-        all_features_teacher = self.models['encoder_teacher'](all_features_teacher)
+        # all_features_teacher = self.models['initial_teacher'](all_colour_aug_aff.cuda().float())
+        # all_features_teacher = self.models['encoder_teacher'](all_features_teacher)
         
         print('student features shape: ', all_features[3].shape)
-        print('teacher features shape: ', all_features_teacher[3].shape)
+        # print('teacher features shape: ', all_features_teacher[3].shape)
         
         plt.imshow(all_features[0][0, 0, :, :].cpu().numpy())
         plt.show()
-        plt.imshow(all_features_teacher[0][0, 0, :, :].cpu().numpy())
-        plt.show()
+        # plt.imshow(all_features_teacher[0][0, 0, :, :].cpu().numpy())
+        # plt.show()
         
-        plt.imshow(all_features[0][35, 0, :, :].cpu().numpy())
+        plt.imshow(all_features[0][1, 0, :, :].cpu().numpy())
         plt.show()
-        plt.imshow(all_features_teacher[0][35, 0, :, :].cpu().numpy())
+        # plt.imshow(all_features_teacher[0][35, 0, :, :].cpu().numpy())
+        # plt.show()
+        plt.imshow(all_features[0][2, 0, :, :].cpu().numpy())
+        plt.show()
+        plt.imshow(all_features[0][3, 0, :, :].cpu().numpy())
+        plt.show()
+        plt.imshow(all_features[0][4, 0, :, :].cpu().numpy())
         plt.show()
         
         self.load_model()
@@ -671,11 +713,17 @@ class Trainer:
         plt.imshow(all_features[0][0, 0, :, :].cpu().numpy())
         plt.show()
 
-        plt.imshow(all_features[0][35, 0, :, :].cpu().numpy())
+        plt.imshow(all_features[0][1, 0, :, :].cpu().numpy())
+        plt.show()
+        plt.imshow(all_features[0][2, 0, :, :].cpu().numpy())
+        plt.show()
+        plt.imshow(all_features[0][3, 0, :, :].cpu().numpy())
+        plt.show()
+        plt.imshow(all_features[0][4, 0, :, :].cpu().numpy())
         plt.show()
         
 
-        return outputs, losses
+        # return outputs, losses
     
     def process_affinity_only(self, inputs):
         
@@ -735,21 +783,21 @@ class Trainer:
             
             all_features = self.models['initial'](all_colour_aug.cuda().float())
             all_features = self.models['encoder'](all_features)
-            # print('first out shape: ', len(all_features), len(all_features[4]), all_features[4].shape)
-            buffered_4 = self.models['buffer_m1'](all_features[4])
-            buffered_3 = self.models['buffer_m2'](all_features[3])
-            buffered_2 = self.models['buffer_m3'](all_features[2])
+            
+            # buffered_4 = self.models['buffer_m1'](all_features[4])
+            # buffered_3 = self.models['buffer_m2'](all_features[3])
+            # buffered_2 = self.models['buffer_m3'](all_features[2])
             
             all_features = [torch.split(f, self.opt.batch_size) for f in all_features]
-            # print('split features: ', len(all_features), len(all_features[4]))
-            buffered_4 = torch.split(buffered_4, self.opt.batch_size)
-            buffered_3 = torch.split(buffered_3, self.opt.batch_size)
-            buffered_2 = torch.split(buffered_2, self.opt.batch_size)
-            # print('after out shape: ', len(buffered_4), buffered_4[0].shape)
-            buffered_features = {}
-            buffered_features['buffered_m1'] = buffered_4
-            buffered_features['buffered_m2'] = buffered_3
-            buffered_features['buffered_m3'] = buffered_2
+            
+            # buffered_4 = torch.split(buffered_4, self.opt.batch_size)
+            # buffered_3 = torch.split(buffered_3, self.opt.batch_size)
+            # buffered_2 = torch.split(buffered_2, self.opt.batch_size)
+            
+            # buffered_features = {}
+            # buffered_features['buffered_m1'] = buffered_4
+            # buffered_features['buffered_m2'] = buffered_3
+            # buffered_features['buffered_m3'] = buffered_2
             
             features = {}
             # print('all features shape: ', len(all_features))
@@ -764,7 +812,21 @@ class Trainer:
                 with torch.no_grad():
                     all_features_teacher = self.models['initial_teacher'](all_colour_aug_aff.cuda().float())
                     all_features_teacher = self.models['encoder_teacher'](all_features_teacher)
+                    
+                    buffered_4 = self.models['buffer_m1'](all_features_teacher[4])
+                    buffered_3 = self.models['buffer_m2'](all_features_teacher[3])
+                    buffered_2 = self.models['buffer_m3'](all_features_teacher[2])
+                    
                     all_features_teacher = [torch.split(f, self.opt.batch_size) for f in all_features_teacher]
+                    
+                    buffered_4 = torch.split(buffered_4, self.opt.batch_size)
+                    buffered_3 = torch.split(buffered_3, self.opt.batch_size)
+                    buffered_2 = torch.split(buffered_2, self.opt.batch_size)
+                    
+                    buffered_features = {}
+                    buffered_features['buffered_m1'] = buffered_4
+                    buffered_features['buffered_m2'] = buffered_3
+                    buffered_features['buffered_m3'] = buffered_2
                     
                 teacher_features = {}
                 for i, k in enumerate(self.opt.frame_ids):
@@ -1033,6 +1095,7 @@ class Trainer:
 
             for frame_id in self.opt.frame_ids[1:]:
                 pred = outputs[("color", frame_id)]
+                # print('loss calculation frame ID: ', frame_id)
                 rp = self.compute_reprojection_loss(pred, target)
                 reprojection_losses.append(rp)
 
@@ -1124,7 +1187,7 @@ class Trainer:
             for frame_id in self.opt.frame_ids[1:]:
                 pred = outputs[("color", frame_id)]
                 # pred_teacher = outputs_teacher[('color', frame_id)]
-                
+                # print('loss calculation frame ID: ', frame_id)
                 rp = self.compute_reprojection_loss(pred, target)
                 # rp_st = self.compute_reprojection_loss(pred, pred_teacher.detach()) # --------------------------------------------------
                 reprojection_losses.append(rp*0.9)
@@ -1197,6 +1260,7 @@ class Trainer:
             
             huber = torch.nn.HuberLoss()
             mse = torch.nn.MSELoss()
+            l1 = torch.nn.L1Loss()
             
             # print('loss features shape: ', features[0][0].shape, len(features), len(features[0]))
             # for key, value in features.items() :
@@ -1213,17 +1277,17 @@ class Trainer:
             if self.epoch >= 2:
                 # print('check shapes: ', len(buffered_features['buffered_m1', 1]), teacher_features[0][4].shape)
                 
-                enc_dif_loss_00 = huber(buffered_features['buffered_m1'][0], teacher_features[0][4].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_01 = huber(buffered_features['buffered_m1'][1], teacher_features[1][4].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_02 = huber(buffered_features['buffered_m1'][2], teacher_features[-1][4].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_00 = huber(buffered_features['buffered_m1'][0], features[0][4].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_01 = huber(buffered_features['buffered_m1'][1], features[1][4].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_02 = huber(buffered_features['buffered_m1'][2], features[-1][4].detach()) # ------------------------------------------------------------------
                 
-                enc_dif_loss_10 = huber(buffered_features['buffered_m2'][0], teacher_features[0][3].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_11 = huber(buffered_features['buffered_m2'][1], teacher_features[1][3].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_12 = huber(buffered_features['buffered_m2'][2], teacher_features[-1][3].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_10 = huber(buffered_features['buffered_m2'][0], features[0][3].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_11 = huber(buffered_features['buffered_m2'][1], features[1][3].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_12 = huber(buffered_features['buffered_m2'][2], features[-1][3].detach()) # ------------------------------------------------------------------
                 
-                enc_dif_loss_20 = huber(buffered_features['buffered_m3'][0], teacher_features[0][2].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_21 = huber(buffered_features['buffered_m3'][1], teacher_features[1][2].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_22 = huber(buffered_features['buffered_m3'][2], teacher_features[-1][2].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_20 = huber(buffered_features['buffered_m3'][0], features[0][2].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_21 = huber(buffered_features['buffered_m3'][1], features[1][2].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_22 = huber(buffered_features['buffered_m3'][2], features[-1][2].detach()) # ------------------------------------------------------------------
                 
                 
                 enc_dif_loss = (enc_dif_loss_00 + enc_dif_loss_01 + enc_dif_loss_02 + enc_dif_loss_10 + enc_dif_loss_11 + enc_dif_loss_12 + enc_dif_loss_10 + enc_dif_loss_11 + enc_dif_loss_12) / 9 # ------------------------------------------------------------------
