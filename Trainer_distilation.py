@@ -18,12 +18,15 @@ import matplotlib.pyplot as plt
 from PIL import Image 
 import PIL 
 
+import copy
+
+
 class conv_block(nn.Module):
     def __init__(self, in_channels):
         super(conv_block, self).__init__()
         
         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size = 3, stride = 1, padding = 1, bias = False)
-        # self.conv2 = nn.Conv2d(in_channels, in_channels, kernel_size = 3, stride = 1, padding = 1, bias = False)
+        self.conv2 = nn.Conv2d(in_channels, in_channels, kernel_size = 3, stride = 1, padding = 1, bias = False)
         # self.norm = nn.BatchNorm2d(in_channels)
         
         self.act = nn.ReLU(inplace = True)
@@ -32,14 +35,14 @@ class conv_block(nn.Module):
         # print('inside len: ', len(x), x.shape, torch.Tensor(x).shape)
         x = self.conv(x)
         d0, d1, d2, d3 = x.shape
-        self.norm = nn.LayerNorm(d3).cuda()
-        x = self.norm(x)
-        # x = self.act(x)
+        self.norm1 = nn.LayerNorm(d3).cuda()
+        x = self.norm1(x)
+        x = self.act(x)
         
-        # x = self.conv2(x)
-        # d0, d1, d2, d3 = x.shape
-        # self.norm = nn.LayerNorm(d3).cuda()
-        # x = self.norm(x)
+        x = self.conv2(x)
+        d0, d1, d2, d3 = x.shape
+        self.norm2 = nn.LayerNorm(d3).cuda()
+        x = self.norm2(x)
         
         return self.act(x)
 
@@ -70,6 +73,8 @@ class Trainer:
         
         self.models['encoder'] = networks.ResnetEncoder_student(num_layers = 18, pretrained = False) # options [18, 34, 50, 101, 152]
         self.models['encoder'].to(self.device)
+        # self.models['dummy_encoder'] = networks.ResnetEncoder_student(num_layers = 18, pretrained = False)
+        # self.models['dummy_encoder'].to(self.device)
         self.parameters_to_train += list(self.models['encoder'].parameters())   ############################### un-comment when not using multi LR ####################
         
         self.models['buffer_m1'] = conv_block(256)
@@ -95,10 +100,11 @@ class Trainer:
         
         
         self.models['depth'] = networks.DepthDecoder(scales = self.opt.scales)
+        # self.models['depth'] = networks.DepthDecoder_SA(scales = self.opt.scales)
         self.models['depth'].to(self.device)
         self.parameters_to_train += list(self.models['depth'].parameters())
         
-        self.models['depth_teacher'] = networks.DepthDecoder(scales = self.opt.scales)
+        self.models['depth_teacher'] = networks.DepthDecoder_SA(scales = self.opt.scales)
         self.models['depth_teacher'].to(self.device)
         # self.parameters_to_train += list(self.models['depth_teacher'].parameters())
         
@@ -128,7 +134,7 @@ class Trainer:
         self.momentum_schedule = self.cosine_scheduler(0.998, 1, self.opt.num_epochs, len(self.train_loader))
         
         self.record_saves = 'D:\\depth_estimation_implementation\\all_saves\\record_saves'
-        self.file_path = os.path.join(self.record_saves, 'pretraining_A4.txt')
+        self.file_path = os.path.join(self.record_saves, 'finetuning_A5_one_buffer.txt')
         
         self.save_folder = save_folder
         
@@ -177,14 +183,15 @@ class Trainer:
             
     def load_model(self):
         
-        ep = 1
+        ep = 20
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\mini_data_saves\\with_A2_using_3_channels_0.1'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A2'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\original_implementation_weights_APPOLO'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3'
-        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A3_oneLR'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A3_oneLR' #best 1
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3_L1'
+        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A5_original'
         
         # encoder_name = 'Encoder.pth'
         # depth_name = 'Depth.pth'
@@ -201,7 +208,7 @@ class Trainer:
         self.models['depth'].load_state_dict(torch.load(os.path.join(path, depth_name)), strict=False)
         self.models['pose'].load_state_dict(torch.load(os.path.join(path, pose_name)), strict=False)
         
-        self.models['encoder_teacher'].load_state_dict(torch.load(os.path.join(path, encoder_name)), strict = False)
+        # self.models['encoder_teacher'].load_state_dict(torch.load(os.path.join(path, encoder_name)), strict = False)
         
     
     def load_entire(self):
@@ -244,12 +251,13 @@ class Trainer:
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A3'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3_0.2'
         # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A3_L1'
-        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A4'
+        # path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\pretrained_A5'
+        path = 'D:\\depth_estimation_implementation\\all_saves\\weight_saves\\finetuned_A5_one_buffer'
         
         encoder_name = 'Encoder' + str(self.epoch) + '.pth'
         depth_name = 'Depth' + str(self.epoch) + '.pth'
         pose_name = 'Pose' + str(self.epoch) + '.pth'
-        initial_name = 'Initial_encoder' + str(self.epoch + 2) + '.pth'
+        initial_name = 'Initial_encoder' + str(self.epoch) + '.pth'
         
         torch.save(self.models['initial'].state_dict(), os.path.join(path, initial_name))
         torch.save(self.models['encoder'].state_dict(), os.path.join(path, encoder_name))
@@ -306,6 +314,13 @@ class Trainer:
         # print(' ----- Performed EMA --------')
         # if starting_params == ending_params:
             # print('They are the same')
+            
+    def single_ema(self, it, copied_model):
+        with torch.no_grad():
+            m = self.momentum_schedule[it]  # momentum parameter
+            for param_q, param_k in zip(copied_model.parameters(), self.models['encoder'].parameters()):
+                param_k.data.mul_(m).add_((1 - m) * param_q.detach().data)
+                
             
     def ema(student_model, teacher_model, alpha):
         student_weights = student_model.get_weights()
@@ -369,7 +384,7 @@ class Trainer:
                     # print('depth max; ', np.max(depth_pred))
                     
                     try:
-                        for b in range(12):
+                        for b in range(4):
                             prev_image_slice = np.transpose(image_prev[b, :, :, :], (1, 2, 0))
                             image_slice = np.transpose(image[b, :, :, :], (1, 2, 0))
                             next_image_slice = np.transpose(image_next[b, :, :, :], (1, 2, 0))
@@ -516,10 +531,14 @@ class Trainer:
                 epoch_loss.append(losses['loss'].detach().cpu().numpy())
                 all_loss = losses['loss']
             
+            # self.models['dummy_encoder'].load_state_dict(self.models['encoder'].state_dict()) ###########################################################################################
+            
             # print('final loss: ', all_loss, all_loss.double())
             self.model_optimizer.zero_grad()
             all_loss.double().backward()
             self.model_optimizer.step()
+            
+            # self.single_ema(it, self.models['dummy_encoder']) ############################################################################################################################
         
         print('-------Training scores------------')
         print('Epoch: ', self.epoch)
@@ -620,17 +639,32 @@ class Trainer:
         if self.opt.pose_model_type == 'shared':
             all_colour_aug = None
             all_colour_aug = torch.cat([inputs[('image_aug', i)] for i in self.opt.frame_ids])
-            print('input images shape: ', all_colour_aug.shape)
+            # print('input images shape: ', all_colour_aug.shape)
             
             all_features = self.models['initial'](all_colour_aug.cuda().float())
             all_features = self.models['encoder'](all_features)
             all_features = [torch.split(f, self.opt.batch_size) for f in all_features]
+            # print('features length: ', len(all_features), len(all_features[0]))
+            # print('features shape: ', all_features[0][0].shape)
+            # print('features shape: ', all_features[0][1].shape)
+            # print('features shape: ', all_features[0][2].shape)
+            # print('features shape: ', all_features[3].shape)
+            # print('features shape: ', all_features[4].shape)
+            # print('features shape: ', all_features[5].shape)
             
             features ={}
             for i, k in enumerate(self.opt.frame_ids):
                 features[k] = [f[i] for f in all_features]
                 
+            # print('before input shapes: ', len(features), len(features[0]))
+            # print('shapes: ', features[0][0].shape)
+            # print('shapes: ', features[0][1].shape)
+            # print('shapes: ', features[0][2].shape)
+            # print('shapes: ', features[0][3].shape)
+            # print('shapes: ', features[0][4].shape)
+            
             outputs = self.models['depth'](features[0])
+            # print('output depth shape: ', outputs[("disp", 0)].shape)
         
         else:
             print('separate encoders not implemented')
@@ -784,20 +818,20 @@ class Trainer:
             all_features = self.models['initial'](all_colour_aug.cuda().float())
             all_features = self.models['encoder'](all_features)
             
-            # buffered_4 = self.models['buffer_m1'](all_features[4])
-            # buffered_3 = self.models['buffer_m2'](all_features[3])
-            # buffered_2 = self.models['buffer_m3'](all_features[2])
+            buffered_4 = self.models['buffer_m1'](all_features[4])
+            buffered_3 = self.models['buffer_m2'](all_features[3])
+            buffered_2 = self.models['buffer_m3'](all_features[2])
             
             all_features = [torch.split(f, self.opt.batch_size) for f in all_features]
             
-            # buffered_4 = torch.split(buffered_4, self.opt.batch_size)
-            # buffered_3 = torch.split(buffered_3, self.opt.batch_size)
-            # buffered_2 = torch.split(buffered_2, self.opt.batch_size)
+            buffered_4 = torch.split(buffered_4, self.opt.batch_size)
+            buffered_3 = torch.split(buffered_3, self.opt.batch_size)
+            buffered_2 = torch.split(buffered_2, self.opt.batch_size)
             
-            # buffered_features = {}
-            # buffered_features['buffered_m1'] = buffered_4
-            # buffered_features['buffered_m2'] = buffered_3
-            # buffered_features['buffered_m3'] = buffered_2
+            buffered_features = {}
+            buffered_features['buffered_m1'] = buffered_4
+            buffered_features['buffered_m2'] = buffered_3
+            buffered_features['buffered_m3'] = buffered_2
             
             features = {}
             # print('all features shape: ', len(all_features))
@@ -813,20 +847,20 @@ class Trainer:
                     all_features_teacher = self.models['initial_teacher'](all_colour_aug_aff.cuda().float())
                     all_features_teacher = self.models['encoder_teacher'](all_features_teacher)
                     
-                    buffered_4 = self.models['buffer_m1'](all_features_teacher[4])
-                    buffered_3 = self.models['buffer_m2'](all_features_teacher[3])
-                    buffered_2 = self.models['buffer_m3'](all_features_teacher[2])
+                    # buffered_4 = self.models['buffer_m1'](all_features_teacher[4])
+                    # buffered_3 = self.models['buffer_m2'](all_features_teacher[3])
+                    # buffered_2 = self.models['buffer_m3'](all_features_teacher[2])
                     
                     all_features_teacher = [torch.split(f, self.opt.batch_size) for f in all_features_teacher]
                     
-                    buffered_4 = torch.split(buffered_4, self.opt.batch_size)
-                    buffered_3 = torch.split(buffered_3, self.opt.batch_size)
-                    buffered_2 = torch.split(buffered_2, self.opt.batch_size)
+                    # buffered_4 = torch.split(buffered_4, self.opt.batch_size)
+                    # buffered_3 = torch.split(buffered_3, self.opt.batch_size)
+                    # buffered_2 = torch.split(buffered_2, self.opt.batch_size)
                     
-                    buffered_features = {}
-                    buffered_features['buffered_m1'] = buffered_4
-                    buffered_features['buffered_m2'] = buffered_3
-                    buffered_features['buffered_m3'] = buffered_2
+                    # buffered_features = {}
+                    # buffered_features['buffered_m1'] = buffered_4
+                    # buffered_features['buffered_m2'] = buffered_3
+                    # buffered_features['buffered_m3'] = buffered_2
                     
                 teacher_features = {}
                 for i, k in enumerate(self.opt.frame_ids):
@@ -1164,6 +1198,13 @@ class Trainer:
         losses["loss"] = total_loss
         return losses
     
+    def Reg(self, features):
+        features = features.float()
+        T = (((features**2).sum(dim=1))**0.5) + 1e-8
+        # print('features/T: ', features.shape, T.shape)
+        r_feats = features/T.unsqueeze(dim = 1)
+        return r_feats
+    
     def compute_losses(self, inputs, outputs, outputs_teacher, features, teacher_features, buffered_features):
         """Compute the reprojection and smoothness losses for a minibatch
         """
@@ -1262,32 +1303,21 @@ class Trainer:
             mse = torch.nn.MSELoss()
             l1 = torch.nn.L1Loss()
             
-            # print('loss features shape: ', features[0][0].shape, len(features), len(features[0]))
-            # for key, value in features.items() :
-            #     print(key)
-            
-            # print('equal: ', torch.equal(features[0][4], features[-1][4]), torch.equal(features[1][4], features[-1][4]))
-            # if (features[0][4]).all() == (features[-1][4]).all():
-            #     print('similar with 0')
-            
-            # if (features[1][4]).all() == (features[-1][4]).all():
-            #     print('similar with 1')
-            
-            # print('loss features last shape: ', features[0][4].shape, features[1][4].shape, features[-1][4].shape)
             if self.epoch >= 2:
                 # print('check shapes: ', len(buffered_features['buffered_m1', 1]), teacher_features[0][4].shape)
+                # print('feature shapes: ', buffered_features['buffered_m1'][0].shape, teacher_features[0][4].shape)
                 
-                enc_dif_loss_00 = huber(buffered_features['buffered_m1'][0], features[0][4].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_01 = huber(buffered_features['buffered_m1'][1], features[1][4].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_02 = huber(buffered_features['buffered_m1'][2], features[-1][4].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_00 = huber(self.Reg(buffered_features['buffered_m1'][0]), self.Reg(teacher_features[0][4]).detach()) # ------------------------------------------------------------------
+                enc_dif_loss_01 = huber(self.Reg(buffered_features['buffered_m1'][1]), self.Reg(teacher_features[1][4]).detach()) # ------------------------------------------------------------------
+                enc_dif_loss_02 = huber(self.Reg(buffered_features['buffered_m1'][2]), self.Reg(teacher_features[-1][4]).detach()) # ------------------------------------------------------------------
                 
-                enc_dif_loss_10 = huber(buffered_features['buffered_m2'][0], features[0][3].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_11 = huber(buffered_features['buffered_m2'][1], features[1][3].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_12 = huber(buffered_features['buffered_m2'][2], features[-1][3].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_10 = huber(self.Reg(buffered_features['buffered_m2'][0]), self.Reg(teacher_features[0][3]).detach()) # ------------------------------------------------------------------
+                enc_dif_loss_11 = huber(self.Reg(buffered_features['buffered_m2'][1]), self.Reg(teacher_features[1][3]).detach()) # ------------------------------------------------------------------
+                enc_dif_loss_12 = huber(self.Reg(buffered_features['buffered_m2'][2]), self.Reg(teacher_features[-1][3]).detach()) # ------------------------------------------------------------------
                 
-                enc_dif_loss_20 = huber(buffered_features['buffered_m3'][0], features[0][2].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_21 = huber(buffered_features['buffered_m3'][1], features[1][2].detach()) # ------------------------------------------------------------------
-                enc_dif_loss_22 = huber(buffered_features['buffered_m3'][2], features[-1][2].detach()) # ------------------------------------------------------------------
+                enc_dif_loss_20 = huber(self.Reg(buffered_features['buffered_m3'][0]), self.Reg(teacher_features[0][2]).detach()) # ------------------------------------------------------------------
+                enc_dif_loss_21 = huber(self.Reg(buffered_features['buffered_m3'][1]), self.Reg(teacher_features[1][2]).detach()) # ------------------------------------------------------------------
+                enc_dif_loss_22 = huber(self.Reg(buffered_features['buffered_m3'][2]), self.Reg(teacher_features[-1][2]).detach()) # ------------------------------------------------------------------
                 
                 
                 enc_dif_loss = (enc_dif_loss_00 + enc_dif_loss_01 + enc_dif_loss_02 + enc_dif_loss_10 + enc_dif_loss_11 + enc_dif_loss_12 + enc_dif_loss_10 + enc_dif_loss_11 + enc_dif_loss_12) / 9 # ------------------------------------------------------------------
