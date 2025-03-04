@@ -25,44 +25,44 @@ class DepthDecoder(nn.Module):
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.conv2 = nn.Sequential(
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.conv3 = nn.Sequential(
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.conv4 = nn.Sequential(
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.conv5 = nn.Sequential(
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         
         self.conv6 = nn.Sequential(
             nn.ReflectionPad2d(1),
             nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(64, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         
         self.deconv1 = nn.Sequential(
@@ -70,40 +70,40 @@ class DepthDecoder(nn.Module):
             nn.ReflectionPad2d(1),
             nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.deconv2 = nn.Sequential(
             torch.nn.Upsample(scale_factor=2, mode='nearest'),
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.deconv3 = nn.Sequential(
             torch.nn.Upsample(scale_factor=2, mode='nearest'),
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.deconv4 = nn.Sequential(
             torch.nn.Upsample(scale_factor=2, mode='nearest'),
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(128, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         self.deconv5 = nn.Sequential(
             torch.nn.Upsample(scale_factor=2, mode='nearest'),
             nn.ReflectionPad2d(1),
             nn.Conv2d(256, 64, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(64, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         
         self.deconv6 = nn.Sequential(
@@ -111,8 +111,8 @@ class DepthDecoder(nn.Module):
             nn.ReflectionPad2d(1),
             nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(64, eps=0.001, momentum=0.01),
-            # nn.ReLU(inplace=True)
-            nn.ELU(inplace=True)
+            nn.ReLU(inplace=True)
+            # nn.ELU(inplace=True)
         )
         
         self.depth_pred = nn.Sequential(
@@ -155,7 +155,7 @@ class DepthDecoder(nn.Module):
 
         feats = list(reversed(feature_maps))
         # feats = list(feature_maps)
-        
+        # print('decoder feats shape: ', feats[0].shape)
         x = self.deconv1(self.conv1(feats[0]))
         
         x = self.deconv2(torch.cat([self.conv2(feats[1]), x], dim=1))
@@ -170,6 +170,7 @@ class DepthDecoder(nn.Module):
         if 1 in self.scales:
             self.outputs[("disp", 1)] = self.depth_pred1(x)
         
+        # print('last features shape: ', feats[4].shape)
         x = self.deconv5(torch.cat([self.conv5(feats[4]), x], dim=1))
         
         x = self.deconv6(self.conv6(x))

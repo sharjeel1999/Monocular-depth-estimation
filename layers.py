@@ -154,16 +154,22 @@ class BackprojectDepth(nn.Module):
         self.ones = nn.Parameter(torch.ones(self.batch_size, 1, self.height * self.width),
                                  requires_grad=False)
 
-        self.pix_coords = torch.unsqueeze(torch.stack(
-            [self.id_coords[0].view(-1), self.id_coords[1].view(-1)], 0), 0)
+        self.pix_coords = torch.unsqueeze(torch.stack([self.id_coords[0].view(-1), self.id_coords[1].view(-1)], 0), 0)
         self.pix_coords = self.pix_coords.repeat(batch_size, 1, 1)
-        self.pix_coords = nn.Parameter(torch.cat([self.pix_coords, self.ones], 1),
-                                       requires_grad=False)
+        self.pix_coords = nn.Parameter(torch.cat([self.pix_coords, self.ones], 1), requires_grad=False)
 
     def forward(self, depth, inv_K):
+        # print('starting pix coords: ', self.pix_coords.shape)
         cam_points = torch.matmul(inv_K[:, :3, :3], self.pix_coords)
-        cam_points = depth.view(self.batch_size, 1, -1) * cam_points
-        cam_points = torch.cat([cam_points, self.ones], 1)
+        # print('depth shape: ', depth.shape)
+        # print('cam shape: ', cam_points.shape)
+        rs_depth = depth.view(self.batch_size, 1, -1)
+        # print('rs depth shape: ', rs_depth.shape)
+        
+        cam_points = depth.view(self.batch_size, 1, -1) * cam_points.cuda()
+        # print('cam shape: ', cam_points.shape)
+        cam_points = torch.cat([cam_points, self.ones.cuda()], 1)
+        # print('cam shape: ', cam_points.shape)
 
         return cam_points
 
@@ -180,10 +186,13 @@ class Project3D(nn.Module):
         self.eps = eps
 
     def forward(self, points, K, T):
-        P = torch.matmul(K, T)[:, :3, :]
-
+        P = torch.matmul(K.cuda(), T.cuda())[:, :3, :]
+        # print('p shape: ', P.shape)
+        # print('points shape: ', points.shape)
+        
         cam_points = torch.matmul(P, points)
-
+        
+        # print('Multiplied points: ', cam_points.shape)
         pix_coords = cam_points[:, :2, :] / (cam_points[:, 2, :].unsqueeze(1) + self.eps)
         pix_coords = pix_coords.view(self.batch_size, 2, self.height, self.width)
         pix_coords = pix_coords.permute(0, 2, 3, 1)
@@ -203,12 +212,14 @@ def get_smooth_loss(disp, img):
     """Computes the smoothness loss for a disparity image
     The color image is used for edge-aware smoothness
     """
+    img = img.cuda()
+    #print('image, disp device: ', img.get_device(), disp.get_device())
     grad_disp_x = torch.abs(disp[:, :, :, :-1] - disp[:, :, :, 1:])
     grad_disp_y = torch.abs(disp[:, :, :-1, :] - disp[:, :, 1:, :])
 
     grad_img_x = torch.mean(torch.abs(img[:, :, :, :-1] - img[:, :, :, 1:]), 1, keepdim=True)
     grad_img_y = torch.mean(torch.abs(img[:, :, :-1, :] - img[:, :, 1:, :]), 1, keepdim=True)
-
+    # print('in loss shapes: ', grad_disp_x.shape, grad_img_x.shape)
     grad_disp_x *= torch.exp(-grad_img_x)
     grad_disp_y *= torch.exp(-grad_img_y)
 
@@ -232,6 +243,9 @@ class SSIM(nn.Module):
         self.C2 = 0.03 ** 2
 
     def forward(self, x, y):
+        y = y.cuda()
+        x = x.cuda()
+        #print('x, y devices: ', x.get_device(), y.get_device())
         x = self.refl(x)
         y = self.refl(y)
 
@@ -267,3 +281,39 @@ def compute_depth_errors(gt, pred):
     sq_rel = torch.mean((gt - pred) ** 2 / gt)
 
     return abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3
+
+class Interpolate(nn.Module):
+    """Interpolation module."""
+
+    def __init__(self, scale_factor, mode, align_corners=False):
+        """Init.
+
+        Args:
+            scale_factor (float): scaling
+            mode (str): interpolation mode
+        """
+        super(Interpolate, self).__init__()
+
+        self.interp = nn.functional.interpolate
+        self.scale_factor = scale_factor
+        self.mode = mode
+        self.align_corners = align_corners
+
+    def forward(self, x):
+        """Forward pass.
+
+        Args:
+            x (tensor): input
+
+        Returns:
+            tensor: interpolated data
+        """
+
+        x = self.interp(
+            x,
+            scale_factor=self.scale_factor,
+            mode=self.mode,
+            align_corners=self.align_corners,
+        )
+
+        return x

@@ -30,7 +30,7 @@ class PoseDecoder(nn.Module):
         self.num_input_features = num_input_features
 
         if num_frames_to_predict_for is None:
-            num_frames_to_predict_for = num_input_features - 1
+            num_frames_to_predict_for = num_input_features - 1 # comment the -1 
         self.num_frames_to_predict_for = num_frames_to_predict_for
 
         self.vo_conv1 = conv(256 * 3, 256, kernel_size=7)
@@ -62,5 +62,5 @@ class PoseDecoder(nn.Module):
 
         axisangle = out[..., :3]
         translation = out[..., 3:]
-
+        # print('axis angle shape: ', axisangle.shape)
         return axisangle, translation
