@@ -1,10 +1,13 @@
-#include "main_trainer.h"
+#ifndef CALCULATOR_HPP // Include guard to prevent multiple inclusions
+#define CALCULATOR_HPP
+
 
 #include <string>
 #include <iostream>
 #include <unordered_map>
 
 #include <torch/torch.h>
+
 
 using MNISTTrainDataLoader = std::shared_ptr<torch::data::DataLoader<
     torch::data::TransformedDataset<
@@ -30,27 +33,28 @@ using MNISTTestDataLoader = std::shared_ptr<torch::data::DataLoader<
     torch::data::samplers::DefaultBatchSampler
 >>;
 
-Main_Trainer::Main_Trainer(std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options,
+
+class Main_Trainer {
+public:
+    Main_Trainer(std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options,
                  MNISTTrainDataLoader train_loader,
                  MNISTTestDataLoader test_loader,
                  std::string save_folder,
                  int batch_size,
                  bool use_affinity,
-                 int epochs)
-    : options(options),
-      train_loader(train_loader),
-      test_loader(test_loader),
-      save_folder(save_folder),
-      epochs(epochs),
-      batch_size(batch_size),
-      use_affinity(use_affinity) {
-    std::cout << "Entered Constructor " << std::endl;
-}
+                 int epochs);
+    
+    void all_variables();
+private:
+    std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options;
+    MNISTTrainDataLoader train_loader;
+    MNISTTestDataLoader test_loader;
+    std::string save_folder;
+    int epochs;
+    int batch_size;
+    bool use_affinity;
 
-void Main_Trainer::all_variables() {
-    std::cout << "All variables: " << std::endl;
-    std::cout << "Save Folder: " << save_folder << std::endl;
-    std::cout << "Batch Size: " << batch_size << std::endl;
-    std::cout << "Use Affinity: " << use_affinity << std::endl;
-    std::cout << "Epochs: " << epochs << std::endl;
-}
+
+};
+
+#endif
