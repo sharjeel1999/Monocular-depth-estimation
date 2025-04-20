@@ -1,5 +1,5 @@
-#ifndef CALCULATOR_HPP // Include guard to prevent multiple inclusions
-#define CALCULATOR_HPP
+#ifndef main_trainer_hpp // Include guard to prevent multiple inclusions
+#define main_trainer_hpp
 
 
 #include <string>
@@ -14,6 +14,7 @@
 #include <torch/data/transforms/tensor.h> //contains Normalize
 #include <torch/data/transforms/stack.h>
 
+#include "./networks/resnet_encoder_pre.hpp"
 
 // using MNISTTrainDataLoader = std::shared_ptr<torch::data::DataLoaderImpl<
 //     torch::data::TransformedDataset<
@@ -58,7 +59,14 @@ public:
           epochs_(epochs),
           batch_size_(batch_size),
           use_affinity_(use_affinity) {
+
+        
         std::cout << "Entered Constructor " << std::endl;
+        
+        // device_ = torch::Device('cpu');
+
+        auto encoder = std::make_shared<networks::ResnetEncoder_pre>("/home/sharjeel/Desktop/repositories/Depth_estimation_cpp/cpp/networks_jit_saves/resnet50_fpn_backbone.pt");
+        std::cout << encoder << std::endl;
     }
     
 
@@ -80,6 +88,13 @@ private:
     int batch_size_;
     bool use_affinity_;
 
+    int num_input_frames_;
+    int num_pose_frames_;
+    int num_scales_;
+
+    // torch::Device device_
+    std::unordered_map<std::string, std::shared_ptr<torch::nn::Module>> models_;
+    std::shared_ptr<torch::optim::Optimizer> model_optimizer_;
 
 };
 

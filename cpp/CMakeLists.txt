@@ -14,7 +14,9 @@ find_package(Torch REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 # create a new executable target
-add_executable(torch_practice main.cpp)
+add_executable(torch_practice main.cpp
+    ./networks/resnet_encoder_pre.cpp
+)
 
 # Add the OpenCV libraries to the target
 # This is the correct way to link libraries in CMake

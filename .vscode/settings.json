@@ -50,6 +50,8 @@
         "streambuf": "cpp",
         "text_encoding": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
-    }
+        "variant": "cpp",
+        "map": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

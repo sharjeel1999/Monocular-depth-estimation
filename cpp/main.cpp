@@ -32,6 +32,8 @@ int main() {
     options["learning_rate"] = 0.001;
     options["optimizer_type"] = std::string("Adam");
     options["num_classes"] = 10;
+    options["use_affinity"] = use_affinity;
+    options["device"] = std::string("cpu");
 
 
     std::cout << "Loading MNIST dataset from: " << mnist_data_root << std::endl;
