@@ -38,28 +38,30 @@
 //     torch::data::samplers::DefaultBatchSampler
 // >>;
 
-template <typename T_TrainDataLoader, typename T_TestDataLoader>
-Main_Trainer::Main_Trainer(std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options,
-                T_TrainDataLoader train_loader,
-                T_TestDataLoader test_loader,
-                 std::string save_folder,
-                 int batch_size,
-                 bool use_affinity,
-                 int epochs)
-    : options_(options),
-      train_loader_(std::move(train_loader)),
-      test_loader_(std::move(test_loader)),
-      save_folder_(save_folder),
-      epochs_(epochs),
-      batch_size_(batch_size),
-      use_affinity_(use_affinity) {
-    std::cout << "Entered Constructor " << std::endl;
-}
 
-void Main_Trainer::all_variables() {
-    std::cout << "All variables: " << std::endl;
-    std::cout << "Save Folder: " << save_folder_ << std::endl;
-    std::cout << "Batch Size: " << batch_size_ << std::endl;
-    std::cout << "Use Affinity: " << use_affinity_ << std::endl;
-    std::cout << "Epochs: " << epochs_ << std::endl;
-}
+
+// template <typename T_TrainDataLoader, typename T_TestDataLoader>
+// Main_Trainer::Main_Trainer(std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options,
+//                 T_TrainDataLoader train_loader,
+//                 T_TestDataLoader test_loader,
+//                  std::string save_folder,
+//                  int batch_size,
+//                  bool use_affinity,
+//                  int epochs)
+//     : options_(options),
+//       train_loader_(std::move(train_loader)),
+//       test_loader_(std::move(test_loader)),
+//       save_folder_(save_folder),
+//       epochs_(epochs),
+//       batch_size_(batch_size),
+//       use_affinity_(use_affinity) {
+//     std::cout << "Entered Constructor " << std::endl;
+// }
+
+// void Main_Trainer::all_variables() {
+//     std::cout << "All variables: " << std::endl;
+//     std::cout << "Save Folder: " << save_folder_ << std::endl;
+//     std::cout << "Batch Size: " << batch_size_ << std::endl;
+//     std::cout << "Use Affinity: " << use_affinity_ << std::endl;
+//     std::cout << "Epochs: " << epochs_ << std::endl;
+// }

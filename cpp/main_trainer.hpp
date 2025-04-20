@@ -42,23 +42,43 @@
 template <typename T_TrainDataLoader, typename T_TestDataLoader>
 class Main_Trainer {
 public:
-    Main_Trainer(std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options,
-                T_TrainDataLoader train_loader,
-                T_TestDataLoader test_loader,
-                 std::string save_folder,
-                 int batch_size,
-                 bool use_affinity,
-                 int epochs);
     
-    void all_variables();
+    // Constructor declaration and definition             
+    Main_Trainer(std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options,
+    T_TrainDataLoader train_loader,
+    T_TestDataLoader test_loader,
+        std::string save_folder,
+        int batch_size,
+        bool use_affinity,
+        int epochs)
+        : options_(options),
+          train_loader_(std::move(train_loader)),
+          test_loader_(std::move(test_loader)),
+          save_folder_(save_folder),
+          epochs_(epochs),
+          batch_size_(batch_size),
+          use_affinity_(use_affinity) {
+        std::cout << "Entered Constructor " << std::endl;
+    }
+    
+
+    void all_variables() {
+        std::cout << "All variables: " << std::endl;
+        std::cout << "Save Folder: " << save_folder_ << std::endl;
+        std::cout << "Batch Size: " << batch_size_ << std::endl;
+        std::cout << "Use Affinity: " << use_affinity_ << std::endl;
+        std::cout << "Epochs: " << epochs_ << std::endl;
+    }
+    
+
 private:
-    std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options;
-    T_TrainDataLoader train_loader;
-    T_TestDataLoader test_loader;
-    std::string save_folder;
-    int epochs;
-    int batch_size;
-    bool use_affinity;
+    std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options_;
+    T_TrainDataLoader train_loader_;
+    T_TestDataLoader test_loader_;
+    std::string save_folder_;
+    int epochs_;
+    int batch_size_;
+    bool use_affinity_;
 
 
 };

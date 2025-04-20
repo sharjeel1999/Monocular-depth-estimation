@@ -20,7 +20,7 @@
 
 int main() {
 
-    const std::string mnist_data_root = "/path/to/your/mnist_data";
+    const std::string mnist_data_root = "/home/sharjeel/Desktop/datasets/MNIST/raw";
 
     std::string save_folder = "saved_models";
     int batch_size = 64;
