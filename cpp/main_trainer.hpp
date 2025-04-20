@@ -40,6 +40,39 @@
 //     torch::data::samplers::DefaultBatchSampler
 // >>;
 
+void collect_module_names_recursive(
+    const torch::jit::script::Module& module,
+    const std::string& prefix,
+    std::vector<std::string>& module_names) {
+
+    // Iterate through named modules (direct children)
+    for (const auto& named_module : module.named_modules()) {
+        const std::string& name = named_module.name;
+        const torch::jit::script::Module& submodule = named_module.value;
+
+        // Construct the full hierarchical name
+        std::string full_name = prefix.empty() ? name : prefix + "." + name;
+
+        // Add the full name to the list
+        module_names.push_back(full_name);
+
+        // Recursively call for the submodule, unless it's the same as the current module
+        // (named_modules() of the top-level module includes itself with an empty name)
+        if (!name.empty()) {
+             collect_module_names_recursive(submodule, full_name, module_names);
+        }
+    }
+}
+
+// Function to get all module names
+std::vector<std::string> get_all_module_names(const torch::jit::script::Module& module) {
+    std::vector<std::string> module_names;
+    // Start the recursive collection with an empty prefix
+    collect_module_names_recursive(module, "", module_names);
+    return module_names;
+}
+
+
 template <typename T_TrainDataLoader, typename T_TestDataLoader>
 class Main_Trainer {
 public:
@@ -64,9 +97,17 @@ public:
         std::cout << "Entered Constructor " << std::endl;
         
         // device_ = torch::Device('cpu');
+        
 
-        auto encoder = std::make_shared<networks::ResnetEncoder_pre>("/home/sharjeel/Desktop/repositories/Depth_estimation_cpp/cpp/networks_jit_saves/resnet50_fpn_backbone.pt");
-        std::cout << encoder << std::endl;
+        // Both of the below lines are equivalent methods to load the model seem to work the exact same way... should i make cpp for each module??
+        torch::jit::script::Module encoder_ = std::make_shared<networks::ResnetEncoder_pre>("/home/sharjeel/Desktop/repositories/Depth_estimation_cpp/cpp/networks_jit_saves/resnet50_fpn_backbone.pt")->backbone_;
+        // encoder_ = torch::jit::load("/home/sharjeel/Desktop/repositories/Depth_estimation_cpp/cpp/networks_jit_saves/resnet50_fpn_backbone.pt");
+        
+        std::vector<std::string> mn = get_all_module_names(encoder_);
+        std::cout << "Module names: " << std::endl;
+        for (const auto& name : mn) {
+            std::cout << name << std::endl;
+        }
     }
     
 
@@ -95,6 +136,8 @@ private:
     // torch::Device device_
     std::unordered_map<std::string, std::shared_ptr<torch::nn::Module>> models_;
     std::shared_ptr<torch::optim::Optimizer> model_optimizer_;
+
+    torch::jit::script::Module encoder_;
 
 };
 

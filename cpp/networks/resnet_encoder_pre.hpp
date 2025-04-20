@@ -11,11 +11,12 @@ namespace networks {
 
     class ResnetEncoder_pre : public torch::nn::Module {
     public:
+        torch::jit::script::Module backbone_;
         ResnetEncoder_pre(const std::string& script_module_path);
         std::vector<torch::Tensor> forward(torch::Tensor input_image);
 
-    private:
-        torch::jit::script::Module backbone_;
+    // private:
+    //     torch::jit::script::Module backbone_;
     };
 
 }
