@@ -123,7 +123,7 @@ public:
         std::cout << "Epochs: " << epochs_ << std::endl;
     }
 
-    void process_batch(torch::data::Example<>& input_batch) {
+    torch::data::Example<> process_batch(torch::data::Example<>& input_batch) {
 
         if(options_['shared'].get<std::string>() == true) {
             std::vector<torch::Tensor> tensors_to_concat;
@@ -134,20 +134,12 @@ public:
             }
             all_colour_aug = torch::cat(tensors_to_concat, 0);
 
-            all_features = models_["encoder"]->forward(all_colour_aug);
+            all_features = models_["encoder"]->forward(all_colour_aug.to(torch::kFloat));
 
         } else {
             std::cout << "Separate encoders not implemented, use options_['shared'] = true." << std::endl;
         }
-
-        torch::Tensor input_image = batch.data;
-        torch::Tensor target = batch.target;
-
-
-    
-        torch::Tensor output = models_["encoder"]->forward(input_image);
-
-        // Compute loss, backpropagation, etc.
+        // Process the features with the depth and pose models
     }
 
     void test_model() {
@@ -155,9 +147,8 @@ public:
         
         torch::AutoGradMode no_grad_guard(false); // Disable gradient tracking
 
-        for (torch::data::Example<>& batch : *test_loader_) {
-            
-
+        for (torch::data::Example<>& input_batch : *test_loader_) {
+            process_batch(input_batch);
             
         }
     }
