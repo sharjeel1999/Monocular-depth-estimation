@@ -98,16 +98,20 @@ public:
         
         // device_ = torch::Device('cpu');
         
-
         // Both of the below lines are equivalent methods to load the model seem to work the exact same way... should i make cpp for each module??
-        torch::jit::script::Module encoder_ = std::make_shared<networks::ResnetEncoder_pre>("/home/sharjeel/Desktop/repositories/Depth_estimation_cpp/cpp/networks_jit_saves/resnet50_fpn_backbone.pt")->backbone_;
-        // encoder_ = torch::jit::load("/home/sharjeel/Desktop/repositories/Depth_estimation_cpp/cpp/networks_jit_saves/resnet50_fpn_backbone.pt");
+        // torch::jit::script::Module encoder_ = std::make_shared<networks::ResnetEncoder_pre>("/home/sharjeel/Desktop/repositories/Depth_estimation_cpp/cpp/networks_jit_saves/resnet50_fpn_backbone.pt")->backbone_;
+        models_['encoder'] = torch::jit::load(options_["encoder_path"].get<std::string>());
         
-        std::vector<std::string> mn = get_all_module_names(encoder_);
-        std::cout << "Module names: " << std::endl;
-        for (const auto& name : mn) {
-            std::cout << name << std::endl;
-        }
+        models_['depth'] = torch::jit::load(options_["depth_path"].get<std::string>());
+
+        models_['pose'] = torch::jit::load(options_["pose_path"].get<std::string>());
+
+
+        // std::vector<std::string> mn = get_all_module_names(encoder_);
+        // std::cout << "Module names: " << std::endl;
+        // for (const auto& name : mn) {
+        //     std::cout << name << std::endl;
+        // }
     }
     
 
@@ -118,10 +122,49 @@ public:
         std::cout << "Use Affinity: " << use_affinity_ << std::endl;
         std::cout << "Epochs: " << epochs_ << std::endl;
     }
+
+    void process_batch(torch::data::Example<>& input_batch) {
+
+        if(options_['shared'].get<std::string>() == true) {
+            std::vector<torch::Tensor> tensors_to_concat;
+
+            for(i : options_['frame_ids'].get<std::vector<int>>()) {
+                std::string key = "image_aug_" + std::to_string(id);
+                tensors_to_concat.push_back(input_batch.at(key));
+            }
+            all_colour_aug = torch::cat(tensors_to_concat, 0);
+
+            all_features = models_["encoder"]->forward(all_colour_aug);
+
+        } else {
+            std::cout << "Separate encoders not implemented, use options_['shared'] = true." << std::endl;
+        }
+
+        torch::Tensor input_image = batch.data;
+        torch::Tensor target = batch.target;
+
+
+    
+        torch::Tensor output = models_["encoder"]->forward(input_image);
+
+        // Compute loss, backpropagation, etc.
+    }
+
+    void test_model() {
+        std::cout << "Testing model..." << std::endl;
+        
+        torch::AutoGradMode no_grad_guard(false); // Disable gradient tracking
+
+        for (torch::data::Example<>& batch : *test_loader_) {
+            
+
+            
+        }
+    }
     
 
 private:
-    std::unordered_map<std::string, std::variant<int, double, bool, std::string>> options_;
+    std::unordered_map<std::string, std::variant<int, double, bool, std::string, std::vector<int>>> options_;
     T_TrainDataLoader train_loader_;
     T_TestDataLoader test_loader_;
     std::string save_folder_;
@@ -134,7 +177,8 @@ private:
     int num_scales_;
 
     // torch::Device device_
-    std::unordered_map<std::string, std::shared_ptr<torch::nn::Module>> models_;
+    // std::unordered_map<std::string, std::shared_ptr<torch::nn::Module>> models_; // if using the models written in cpp file
+    std::unordered_map<std::string, std::shared_ptr<torch::jit::script::Module>> models_; // if using the models written in python and converted to torchscript
     std::shared_ptr<torch::optim::Optimizer> model_optimizer_;
 
     torch::jit::script::Module encoder_;
