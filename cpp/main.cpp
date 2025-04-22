@@ -1,6 +1,6 @@
 
 #include "main_trainer.hpp"
-
+#include "data_loaders.hpp"
 
 #include <torch/torch.h>
 #include <torch/data/datasets/mnist.h>
@@ -38,13 +38,8 @@ int main() {
 
     std::cout << "Loading MNIST dataset from: " << mnist_data_root << std::endl;
 
-    auto train_dataset = torch::data::datasets::MNIST(mnist_data_root, torch::data::datasets::MNIST::Mode::kTrain)
-                             .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
-                             .map(torch::data::transforms::Stack<>());
-
-    auto test_dataset = torch::data::datasets::MNIST(mnist_data_root, torch::data::datasets::MNIST::Mode::kTest)
-                            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
-                            .map(torch::data::transforms::Stack<>());
+    auto train_dataset_test = data_loaders::Prepare_dataset_test(train_data_path);
+    auto test_dataset_test = data_loaders::Prepare_dataset_test(data_path);
 
     auto train_loader = torch::data::make_data_loader(
         std::move(train_dataset),
@@ -62,7 +57,7 @@ int main() {
     std::cout << "\nCreating Main_Trainer object..." << std::endl;
 
     Main_Trainer trainer(options,
-                        std::move(train_loader),
+                        std::move(train_dataset_test),
                         std::move(test_loader),
                          save_folder,
                          batch_size,
