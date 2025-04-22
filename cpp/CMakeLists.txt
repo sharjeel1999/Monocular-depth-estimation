@@ -16,6 +16,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 # create a new executable target
 add_executable(torch_practice main.cpp
     ./networks/resnet_encoder_pre.cpp
+    data_loader.cpp
 )
 
 # Add the OpenCV libraries to the target
